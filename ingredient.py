@@ -1,16 +1,10 @@
-import enum
-
-
-class RustIngredients(enum.Enum):
-    SULFUR = "Sulfur"
-    CHARCOAL = "Charcoal"
-
-    GUN_POWDER = "Gun Powder"
-
+from rust_ingredients import RustIngredients
+from recipe import Recipe
 
 class Ingredient:
-    def __init__(self, name: RustIngredients, qty: int):
+    def __init__(self, name: RustIngredients, recipe: Recipe, qty: int):
         self.name: str = name.value
+        self.recipe: Recipe = recipe
         self.qty: int = qty
 
     def __eq__(self, other):
@@ -19,7 +13,7 @@ class Ingredient:
         return False
 
     def copy_with_new_qty(self, new_qty: int) -> "Ingredient":
-        return Ingredient(RustIngredients[self.name.replace(" ", "_").upper()], new_qty)
+        return Ingredient(RustIngredients[self.name.replace(" ", "_").upper()], self.recipe, new_qty)
 
     # def __ge__(self, other):
     #     if isinstance(other, Ingredient):
@@ -27,14 +21,3 @@ class Ingredient:
 
     def __repr__(self):
         return f"{self.name} x{self.qty}"
-
-
-def sulfur(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.SULFUR, qty)
-
-
-def charcoal(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.CHARCOAL, qty)
-
-def gun_powder(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.GUN_POWDER, qty)
