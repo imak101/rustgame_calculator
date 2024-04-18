@@ -1,12 +1,9 @@
-import recipe
-import ingredient
+from rust_ingredients import IngredientKey as ingredient
+from rust_ingredients import *
+from recipe_table import *
 
 if __name__ == '__main__':
     input_char = 7000
     input_sulf = 7000
 
-    result = recipe.satchel_charge.ingredients_needed_for(12)
-    for item in result:
-        print(item)
-        print(item.recipe)
-
+    print(RECIPES[CraftingStation.T1][ingredient.SATCHEL_CHARGE].ingredients)

@@ -1,8 +1,7 @@
-import enum
-from ingredient import Ingredient
+from enum import Enum
 
-class RustIngredients(enum.Enum):
-    # Resources
+
+class IngredientKey(Enum):
     SULFUR = "Sulfur"
     CHARCOAL = "Charcoal"
     GUN_POWDER = "Gun Powder"
@@ -19,44 +18,28 @@ class RustIngredients(enum.Enum):
     BEANCAN_GRENADE = "Beancan Grenade"
     SATCHEL_CHARGE = "Satchel Charge"
 
-
-# Resources
-
-def sulfur(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.SULFUR, qty)
+    def from_qty(self, qty: int) -> "RustIngredient":
+        return RustIngredient(self, qty)
 
 
-def charcoal(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.CHARCOAL, qty)
+class RustIngredient:
+    def __init__(self, key: IngredientKey, qty: int):
+        self.key: Ingredient = key
+        self.name: str = key.value
+        self.qty: int = qty
 
-def gun_powder(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.GUN_POWDER, qty)
+    def __eq__(self, other):
+        if isinstance(other, RustIngredient):
+            return self.name == other.name
+        return False
 
-def metal_fragments(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.METAL_FRAGMENTS, qty)
+    def copy_with_new_qty(self, new_qty: int) -> "RustIngredient":
+        return RustIngredient(self.key, new_qty)
 
-def cloth(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.CLOTH, qty)
+    # def __ge__(self, other):
+    #     if isinstance(other, Ingredient):
+    #         return other.qty >= self.qty
 
-# End Resources
-# Misc
+    def __repr__(self):
+        return f"{self.name} x{self.qty}"
 
-def small_stash(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.SMALL_STASH, qty)
-
-# End Misc
-# Comps
-
-def rope(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.ROPE, qty)
-
-# End Comps
-# Boom
-
-def beancan_grenade(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.BEANCAN_GRENADE, qty)
-
-def satchel_charge(qty: int) -> Ingredient:
-    return Ingredient(RustIngredients.SATCHEL_CHARGE, qty)
-
-# End Boom
