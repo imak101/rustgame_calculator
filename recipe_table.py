@@ -64,7 +64,60 @@ class RecipeTableOptions:
 class RecipeTable:
     def __init__(self, options: RecipeTableOptions):
         self.options: RecipeTableOptions = options
-        self.recipes: dict[IngredientKey, Recipe] = {}
-        # self.ingredient_table: IngredientTable = IngredientTable(self.options)
+        self.recipes: dict[IngredientKey, Recipe] = RECIPES[options.crafting_station]
 
-        # self.ingredient_table.gun_powder()
+    def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
+        if recipe not in self.recipes:
+            return RecipeQueryResult(recipe.from_qty(qty), None, None)
+
+        matched_recipe = self.recipes[recipe]
+        return RecipeQueryResult(recipe.from_qty(qty), matched_recipe.ingredients_needed_for(qty), self)
+
+    # def __getitem__(self, recipe: IngredientKey) -> RecipeQueryResult:
+    #     try:
+    #         return RecipeQueryResult([self.recipes[recipe]], self.recipes)
+    #     except KeyError:
+    #         return None
+
+
+class RecipeQueryResult:
+    def __init__(self, parent_ingredient: RustIngredient, ingredients: list[RustIngredient] | None,
+                 associated_recipe_table: RecipeTable | None):
+        self.parent_ingredient: RustIngredient = parent_ingredient
+        self.ingredients: list[RustIngredient] | None = ingredients
+        self.associated_recipe_table: RecipeTable | None = associated_recipe_table
+
+        self.recipes: list["RecipeQueryResult"] | None = self.__recipes()
+
+    def __recipes(self) -> list["RecipeQueryResult"] | None:
+        if self.ingredients is None:
+            return None
+
+        result = []
+        for self_ingredient in self.ingredients:
+            if self_ingredient.key not in self.associated_recipe_table.recipes:
+                result.append(RecipeQueryResult(self_ingredient, None, None))
+                continue
+
+            matched_recipe = self.associated_recipe_table.recipes[self_ingredient.key]
+            final_ingredients = matched_recipe.ingredients_needed_for(self_ingredient.qty)
+            result.append(RecipeQueryResult(self_ingredient, final_ingredients, self.associated_recipe_table))
+
+        return result
+
+    def print_tree(self, node: "RecipeQueryResult" = None, last=True, header=''):
+        if node is None:
+            node = self
+            print(f"{node.associated_recipe_table.options.crafting_station.value}")
+        elbow = "└──"
+        pipe = "│  "
+        tee = "├──"
+        blank = "   "
+        print(header + (elbow if last else tee) + str(node.parent_ingredient))
+        if node.recipes is not None:
+            for i, n in enumerate(node.recipes):
+                self.print_tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
+
+    def __repr__(self):
+        print_tabs = lambda: "\t" * self.__nodes_deep
+        return f"RecipeQueryResult for {self.parent_ingredient}: Ingredients: {self.ingredients} Recipes: {len(self.recipes)}"
