@@ -46,7 +46,25 @@ workbench_t2_recipes: dict[IngredientKey, Recipe] = {
                                   seconds_to_craft=1),
 }
 
-workbench_t3_recipes: dict[IngredientKey, Recipe] = {}
+workbench_t3_recipes: dict[IngredientKey, Recipe] = {
+    ingredient.EXPLOSIVES: Recipe(ingredient.EXPLOSIVES,
+                                  ingredients=[ingredient.GUN_POWDER.from_qty(50), ingredient.LOW_GRADE_FUEL.from_qty(3),
+                                               ingredient.SULFUR.from_qty(10), ingredient.METAL_FRAGMENTS.from_qty(10)],
+                                  result=ingredient.EXPLOSIVES.from_qty(1), crafting_station=CraftingStation.T3,
+                                  seconds_to_craft=5),
+
+    ingredient.ROCKET: Recipe(ingredient.ROCKET,
+                              ingredients=[ingredient.METAL_PIPE.from_qty(2), ingredient.GUN_POWDER.from_qty(150),
+                                           ingredient.EXPLOSIVES.from_qty(10)],
+                              result=ingredient.ROCKET.from_qty(1), crafting_station=CraftingStation.T3, seconds_to_craft=10),
+
+    ingredient.TIMED_EXPLOSIVE_CHARGE: Recipe(ingredient.TIMED_EXPLOSIVE_CHARGE,
+                                              ingredients=[ingredient.EXPLOSIVES.from_qty(20), ingredient.CLOTH.from_qty(5),
+                                                           ingredient.TECH_TRASH.from_qty(2)],
+                                              result=ingredient.TIMED_EXPLOSIVE_CHARGE.from_qty(1), crafting_station=CraftingStation.T3, seconds_to_craft=30)
+
+
+}
 
 default_recipes: dict[IngredientKey, Recipe] = {
     ingredient.SMALL_STASH: Recipe(ingredient.SMALL_STASH, ingredients=[ingredient.CLOTH.from_qty(10)],
@@ -60,25 +78,53 @@ default_recipes: dict[IngredientKey, Recipe] = {
                                       seconds_to_craft=5),
 }
 
+component_recipes: dict[IngredientKey, Recipe] = {
+    ingredient.METAL_PIPE: Recipe(ingredient.METAL_PIPE, ingredients=[ingredient.HIGH_QUALITY_METAL.from_qty(2), ingredient.SCRAP.from_qty(20)],
+                                  result=ingredient.METAL_PIPE.from_qty(1), crafting_station=CraftingStation.T3, seconds_to_craft=1),
+}
+
 RECIPES: dict[CraftingStation, dict[IngredientKey, Recipe]] = {
     CraftingStation.NONE: default_recipes,
     CraftingStation.T1: default_recipes | workbench_t1_recipes,
     CraftingStation.T2: default_recipes | workbench_t1_recipes | workbench_t2_recipes,
     CraftingStation.T3: default_recipes | workbench_t1_recipes | workbench_t2_recipes | workbench_t3_recipes,
-    CraftingStation.MIXING_TABLE: default_recipes | workbench_t1_recipes | workbench_t2_recipes | workbench_t3_recipes | mixing_table_recipes,
+    CraftingStation.MIXING_TABLE: mixing_table_recipes,
     CraftingStation.SMALL_OIL_REFINERY: oil_refinery_recipes
 }
 
 
 class RecipeTableOptions:
-    def __init__(self, crafting_station: CraftingStation):
+    def __init__(self, crafting_station: CraftingStation, use_low_grade_from_refinery: bool, use_mixing_table_recipes: bool, use_component_recipes: bool):
         self.crafting_station = crafting_station
+        self.use_low_grade_from_refinery = use_low_grade_from_refinery
+        self.use_mixing_table_recipes = use_mixing_table_recipes
+        self.use_component_recipes = use_component_recipes
+
+    def __repr__(self):
+        options = []
+        if self.use_mixing_table_recipes:
+            options.append("Mixing Table Recipes")
+        if self.use_low_grade_from_refinery:
+            options.append("Low Grade From Refinery")
+        if self.use_component_recipes:
+            options.append("Component Recipes")
+        options_string = "(with " + ", ".join(options) + ")"
+
+        return f"{self.crafting_station.value} {options_string}"
 
 
 class RecipeTable:
     def __init__(self, options: RecipeTableOptions):
         self.options: RecipeTableOptions = options
         self.recipes: dict[IngredientKey, Recipe] = RECIPES[options.crafting_station]
+
+        # todo: refactor
+        if self.options.use_low_grade_from_refinery:
+            self.recipes = self.recipes | RECIPES[CraftingStation.SMALL_OIL_REFINERY]
+        if self.options.use_mixing_table_recipes:
+            self.recipes = self.recipes | RECIPES[CraftingStation.MIXING_TABLE]
+        if self.options.use_component_recipes:
+            self.recipes = self.recipes | component_recipes
 
     def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
         if not isinstance(qty, int):
@@ -135,7 +181,8 @@ class RecipeQueryResult:
     def print_tree(self, node: "RecipeQueryResult" = None, last=True, header=''):
         if node is None:
             node = self
-            print(f"{node.associated_recipe_table.options.crafting_station.value}")
+            # print(f"{node.associated_recipe_table.options.crafting_station.value} ")
+            print(str(node.associated_recipe_table.options))
         elbow = "└──"
         pipe = "│  "
         tee = "├──"

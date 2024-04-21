@@ -13,16 +13,23 @@ class IngredientKey(Enum):
     ANIMAL_FAT = "Animal Fat"
     CRUDE_OIL = "Crude Oil"
     WOOD = "Wood"
+    HIGH_QUALITY_METAL = "High Quality Metal"
+    SCRAP = "Scrap"
 
     # Misc
     SMALL_STASH = "Small Stash"
 
     # Comps
     ROPE = "Rope"
+    METAL_PIPE = "Metal Pipe"
+    TECH_TRASH = "Tech Trash"
 
     # Boom
     BEANCAN_GRENADE = "Beancan Grenade"
     SATCHEL_CHARGE = "Satchel Charge"
+    EXPLOSIVES = "Explosives"
+    ROCKET = "Rocket"
+    TIMED_EXPLOSIVE_CHARGE = "Timed Explosive Charge"
 
     def from_qty(self, qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self, qty, extra)
@@ -63,8 +70,8 @@ class RustIngredient:
         show_exact_amount_too = self.total_qty < math.ceil(self.total_qty) != 1
         exact_amount = '(' + f'≡{self.total_qty:.2f}' + ')' if show_exact_amount_too else ''
         if self.extra <= 0:
-            payload = f"{self.name} x{math.ceil(self.qty)}{exact_amount}"
+            payload = f"{self.name} x{math.ceil(self.qty):,}{exact_amount}"
         else:
-            payload = f"{self.name} x{math.ceil(self.total_qty)}{exact_amount} (originally x{round(self.qty, 2)})"
+            payload = f"{self.name} x{math.ceil(self.total_qty):,}{exact_amount} (originally x{round(self.qty, 2):,})"
 
         return payload
