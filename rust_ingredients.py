@@ -1,12 +1,18 @@
 from enum import Enum
+import math
 
 
 class IngredientKey(Enum):
+    # Resource
     SULFUR = "Sulfur"
     CHARCOAL = "Charcoal"
     GUN_POWDER = "Gun Powder"
     METAL_FRAGMENTS = "Metal Fragments"
     CLOTH = "Cloth"
+    LOW_GRADE_FUEL = "Low Grade Fuel"
+    ANIMAL_FAT = "Animal Fat"
+    CRUDE_OIL = "Crude Oil"
+    WOOD = "Wood"
 
     # Misc
     SMALL_STASH = "Small Stash"
@@ -18,28 +24,47 @@ class IngredientKey(Enum):
     BEANCAN_GRENADE = "Beancan Grenade"
     SATCHEL_CHARGE = "Satchel Charge"
 
-    def from_qty(self, qty: int) -> "RustIngredient":
-        return RustIngredient(self, qty)
+    def from_qty(self, qty: float, extra: float | None = None) -> "RustIngredient":
+        return RustIngredient(self, qty, extra)
 
 
 class RustIngredient:
-    def __init__(self, key: IngredientKey, qty: int):
+    """In Rust, ingredients are represented and used only in whole numbers.
+    However, specific crafting recipes consume specific ingredients in fractions (e.g. the oil refinery converts 2.22 wood and 1 crude oil into 3 low grade)
+    so every RustIngredient quantity is a float even if the actual ingredient is a whole number.
+
+    The [extra] argument is used to represent the amount that is needed for the original [qty]
+    to be (relatively) divisible by the crafting amount of whatever recipe that requires this ingredient.
+    This is done so that the original, requested quantity is not lost and only requires adding [qty] and [extra] to see the true amount.
+
+    e.g. A user requests the ingredients needed to make 1 low grade fuel from an oil refinery.
+    Because the oil refinery can only make low grade in stacks of 3, we will instantiate the result [RustIngredient] with
+    the [qty] as 1 and [extra] as 2. If the user requests 2 low grade: [qty] = 2 and [extra] as 1. For 3LGF (a valid stack size): [qty] = 3, [extra] = 0
+
+    [extra] can be None when no calculation was performed to see if any extra was actually needed. 0 is a valid amount for [extra].
+     """
+    def __init__(self, key: IngredientKey, qty: float, extra: float | None = None):
         self.key: Ingredient = key
         self.name: str = key.value
-        self.qty: int = qty
+        self.qty: float = qty
+        self.extra: float | None = extra
+
+        self.total_qty: float = qty + extra if extra is not None else 0
 
     def __eq__(self, other):
         if isinstance(other, RustIngredient):
             return self.name == other.name
         return False
 
-    def copy_with_new_qty(self, new_qty: int) -> "RustIngredient":
-        return RustIngredient(self.key, new_qty)
-
-    # def __ge__(self, other):
-    #     if isinstance(other, Ingredient):
-    #         return other.qty >= self.qty
+    def copy_with_new_qty(self, new_qty: float, extra: float | None = None) -> "RustIngredient":
+        return RustIngredient(self.key, new_qty, extra)
 
     def __repr__(self):
-        return f"{self.name} x{self.qty}"
+        show_exact_amount_too = self.total_qty < math.ceil(self.total_qty) != 1
+        exact_amount = '(' + f'≡{self.total_qty:.2f}' + ')' if show_exact_amount_too else ''
+        if self.extra <= 0:
+            payload = f"{self.name} x{math.ceil(self.qty)}{exact_amount}"
+        else:
+            payload = f"{self.name} x{math.ceil(self.total_qty)}{exact_amount} (originally x{round(self.qty, 2)})"
 
+        return payload

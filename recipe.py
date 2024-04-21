@@ -35,10 +35,32 @@ class Recipe:
         final_qty = min(craft_qty_possible) if self.result.qty == 1 else min(craft_qty_possible) * self.result.qty
         return self.result.copy_with_new_qty(final_qty)
 
+    def __ingredients_needed_for_without_extra(self, units: int) -> list[RustIngredient]:
+        return [item.copy_with_new_qty(new_qty=(item.qty * units / self.result.qty), extra=0) for item in self.ingredients]
+
     def ingredients_needed_for(self, units: int) -> list[RustIngredient]:
-        if units <= 0:
-            return []
         if units < self.result.qty:
             units = self.result.qty
 
-        return [item.copy_with_new_qty(new_qty=(item.qty * units if self.result.qty == 1 else math.floor(item.qty * units / self.result.qty))) for item in self.ingredients]
+        # check if requested amount is divisible by recipe stack amount which means there will be no extras
+        if units % self.result.qty == 0:
+            return self.__ingredients_needed_for_without_extra(units)
+
+        ingredients_needed_for_closest_stack = self.__ingredients_needed_for_without_extra(self.__find_closest_stack_size(units, self.result))
+        return [adjusted_ingredient.copy_with_new_qty(
+                    # pure relative quantity to parent ingredient quantity
+                    new_qty=(original_ingredient.qty * units / self.result.qty),
+                    # how much extra the new ingredient needs to be to reach the closet valid stack size
+                    extra=adjusted_ingredient.qty % (original_ingredient.qty * units / self.result.qty))
+                for adjusted_ingredient in ingredients_needed_for_closest_stack
+                for original_ingredient in self.ingredients
+                if adjusted_ingredient == original_ingredient]
+
+    @staticmethod
+    def __find_closest_stack_size(wanted_qty: float, ingredient: RustIngredient) -> float:
+        crafting_increments = ingredient.qty
+        closest_stack_size = crafting_increments
+        while closest_stack_size < wanted_qty:
+            closest_stack_size += crafting_increments
+        return closest_stack_size
+

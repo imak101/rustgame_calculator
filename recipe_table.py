@@ -11,6 +11,13 @@ mixing_table_recipes: dict[IngredientKey, Recipe] = {
                                   seconds_to_craft=1),
 }
 
+oil_refinery_recipes: dict[IngredientKey, Recipe] = {
+    ingredient.LOW_GRADE_FUEL: Recipe(ingredient.LOW_GRADE_FUEL,
+                                      ingredients=[ingredient.CRUDE_OIL.from_qty(1), ingredient.WOOD.from_qty(2.22)],
+                                      result=ingredient.LOW_GRADE_FUEL.from_qty(3),
+                                      crafting_station=CraftingStation.SMALL_OIL_REFINERY, seconds_to_craft=3.33),
+}
+
 workbench_t1_recipes: dict[IngredientKey, Recipe] = {
     ingredient.GUN_POWDER: Recipe(ingredient.GUN_POWDER,
                                   ingredients=[ingredient.SULFUR.from_qty(20), ingredient.CHARCOAL.from_qty(30)],
@@ -44,7 +51,13 @@ workbench_t3_recipes: dict[IngredientKey, Recipe] = {}
 default_recipes: dict[IngredientKey, Recipe] = {
     ingredient.SMALL_STASH: Recipe(ingredient.SMALL_STASH, ingredients=[ingredient.CLOTH.from_qty(10)],
                                    result=ingredient.SMALL_STASH.from_qty(1),
-                                   crafting_station=CraftingStation.NONE, seconds_to_craft=15)
+                                   crafting_station=CraftingStation.NONE, seconds_to_craft=15),
+
+    ingredient.LOW_GRADE_FUEL: Recipe(ingredient.LOW_GRADE_FUEL,
+                                      ingredients=[ingredient.CLOTH.from_qty(1), ingredient.ANIMAL_FAT.from_qty(3)],
+                                      result=ingredient.LOW_GRADE_FUEL.from_qty(4),
+                                      crafting_station=CraftingStation.NONE,
+                                      seconds_to_craft=5),
 }
 
 RECIPES: dict[CraftingStation, dict[IngredientKey, Recipe]] = {
@@ -52,7 +65,8 @@ RECIPES: dict[CraftingStation, dict[IngredientKey, Recipe]] = {
     CraftingStation.T1: default_recipes | workbench_t1_recipes,
     CraftingStation.T2: default_recipes | workbench_t1_recipes | workbench_t2_recipes,
     CraftingStation.T3: default_recipes | workbench_t1_recipes | workbench_t2_recipes | workbench_t3_recipes,
-    CraftingStation.MIXING_TABLE: default_recipes | workbench_t1_recipes | workbench_t2_recipes | workbench_t3_recipes | mixing_table_recipes
+    CraftingStation.MIXING_TABLE: default_recipes | workbench_t1_recipes | workbench_t2_recipes | workbench_t3_recipes | mixing_table_recipes,
+    CraftingStation.SMALL_OIL_REFINERY: oil_refinery_recipes
 }
 
 
@@ -67,17 +81,30 @@ class RecipeTable:
         self.recipes: dict[IngredientKey, Recipe] = RECIPES[options.crafting_station]
 
     def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
+        if not isinstance(qty, int):
+            # While internal ingredient quantity is represented as a float, in Rust, items are ONLY shown in integers.
+            raise TypeError("qty must be an integer! You cannot create non-integral quantities of items in Rust.")
+        if qty <= 0:
+            raise ValueError("qty must be greater than zero!")
+
         if recipe not in self.recipes:
             return RecipeQueryResult(recipe.from_qty(qty), None, None)
 
         matched_recipe = self.recipes[recipe]
-        return RecipeQueryResult(recipe.from_qty(qty), matched_recipe.ingredients_needed_for(qty), self)
+        extra_needed_for_parent = self.__calculate_extra(qty, matched_recipe.result)
+        return RecipeQueryResult(parent_ingredient=recipe.from_qty(qty, extra_needed_for_parent),
+                                 ingredients=matched_recipe.ingredients_needed_for(qty),
+                                 associated_recipe_table=self)
 
-    # def __getitem__(self, recipe: IngredientKey) -> RecipeQueryResult:
-    #     try:
-    #         return RecipeQueryResult([self.recipes[recipe]], self.recipes)
-    #     except KeyError:
-    #         return None
+    @staticmethod
+    def __calculate_extra(wanted_qty: int, ingredient: RustIngredient) -> float:
+        crafting_increments = ingredient.qty
+        extra = 0
+        while True:
+            remainder = (wanted_qty + extra) % crafting_increments
+            if remainder == 0:
+                return extra
+            extra += 1
 
 
 class RecipeQueryResult:
@@ -119,5 +146,4 @@ class RecipeQueryResult:
                 self.print_tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
 
     def __repr__(self):
-        print_tabs = lambda: "\t" * self.__nodes_deep
         return f"RecipeQueryResult for {self.parent_ingredient}: Ingredients: {self.ingredients} Recipes: {len(self.recipes)}"

@@ -9,3 +9,4 @@ class CraftingStation(Enum):
     T3 = "Workbench Level 3"
 
     MIXING_TABLE = "Mixing Table"
+    SMALL_OIL_REFINERY = "Small Oil Refinery"
