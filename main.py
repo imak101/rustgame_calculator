@@ -16,7 +16,12 @@ if __name__ == '__main__':
 
     t3 = RecipeTable(RecipeTableOptions(CraftingStation.T3, False, False, True))
 
-    t3.ingredients_needed_for(20, ingredient.ROCKET).print_tree()
+    t3.ingredients_needed_for(20, ingredient.SULFUR).print_tree()
     t3.ingredients_needed_for(6, ingredient.TIMED_EXPLOSIVE_CHARGE).print_tree()
+
+    t3.ingredients_needed_for(6, ingredient.TIMED_EXPLOSIVE_CHARGE).print_total_raw_needed()
+    t3.ingredients_needed_for(21, ingredient.TIMED_EXPLOSIVE_CHARGE).print_total_raw_needed()
+
+
 
 

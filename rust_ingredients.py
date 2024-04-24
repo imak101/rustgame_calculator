@@ -59,9 +59,24 @@ class RustIngredient:
         self.total_qty: float = qty + extra if extra is not None else 0
 
     def __eq__(self, other):
-        if isinstance(other, RustIngredient):
-            return self.name == other.name
-        return False
+        if not isinstance(other, RustIngredient):
+            raise TypeError(f'Cannot compare {type(self).__name__} to {type(other).__name__}')
+        return self.name == other.name
+
+    def __add__(self, other) -> "RustIngredient":
+        if not isinstance(other, RustIngredient):
+            raise TypeError(f'Cannot add {type(self).__name__} to {type(other).__name__}')
+        if self.key != other.key:
+            raise ValueError(f'Cannot add {self.key.value} to {other.key.value}. Make sure they both share the same key.')
+
+        extra = (self.extra or 0) + (other.extra or 0)
+        if self.extra is None and other.extra is None:
+            extra = None
+        return RustIngredient(self.key, self.qty + other.qty, extra)
+
+
+
+
 
     def copy_with_new_qty(self, new_qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self.key, new_qty, extra)
@@ -69,7 +84,7 @@ class RustIngredient:
     def __repr__(self):
         show_exact_amount_too = self.total_qty < math.ceil(self.total_qty) != 1
         exact_amount = '(' + f'≡{self.total_qty:.2f}' + ')' if show_exact_amount_too else ''
-        if self.extra <= 0:
+        if self.extra is None or self.extra <= 0:
             payload = f"{self.name} x{math.ceil(self.qty):,}{exact_amount}"
         else:
             payload = f"{self.name} x{math.ceil(self.total_qty):,}{exact_amount} (originally x{round(self.qty, 2):,})"

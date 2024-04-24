@@ -134,6 +134,8 @@ class RecipeTable:
             raise ValueError("qty must be greater than zero!")
 
         if recipe not in self.recipes:
+            # todo: determine if we should throw vs just returning an empty query
+            # raise ValueError(f"You cannot craft {recipe.value}.")
             return RecipeQueryResult(recipe.from_qty(qty), None, None)
 
         matched_recipe = self.recipes[recipe]
@@ -181,16 +183,51 @@ class RecipeQueryResult:
     def print_tree(self, node: "RecipeQueryResult" = None, last=True, header=''):
         if node is None:
             node = self
-            # print(f"{node.associated_recipe_table.options.crafting_station.value} ")
-            print(str(node.associated_recipe_table.options))
+            if node.associated_recipe_table is None:
+                print("There are no recipes for:")
+            else:
+                print(str(node.associated_recipe_table.options))
         elbow = "└──"
         pipe = "│  "
         tee = "├──"
         blank = "   "
         print(header + (elbow if last else tee) + str(node.parent_ingredient))
         if node.recipes is not None:
+            # index, node
             for i, n in enumerate(node.recipes):
                 self.print_tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
+
+    def __raw(self) -> list[RustIngredient]:
+        totals = []
+        if self.recipes is None:
+            totals.append(self.parent_ingredient)
+            return totals
+        for recipe_query in self.recipes:
+            # if there are no ingredients for this recipe (None), insert just the parent ingredient
+            totals.extend([ingredient for ingredient in recipe_query.ingredients or [recipe_query.parent_ingredient]])
+        return totals
+
+    def print_total_raw_needed(self):
+        if self.recipes is None:
+            raise ValueError(f"You cannot craft {self.parent_ingredient.name}.")
+
+        all_raw_ingredients = []
+        for recipe_query in self.recipes:
+            for recipe_ingredient in recipe_query.__raw():
+                run_combine = 1 <= len([ingredient for ingredient in all_raw_ingredients if ingredient == recipe_ingredient])
+                if run_combine:
+                    # reassign all_raw_ingredients with new list that combined all [RustIngredients] with the same [IngredientKey]. all others are unchanged.
+                    all_raw_ingredients = [raw_total_ingredient + recipe_ingredient if recipe_ingredient == raw_total_ingredient else raw_total_ingredient for raw_total_ingredient in all_raw_ingredients]
+                    continue
+
+                all_raw_ingredients.append(recipe_ingredient)
+
+        # todo: refactor these 5 lines
+        all_raw_ingredients = sorted(all_raw_ingredients, key=lambda ingredient: ingredient.qty, reverse=True)
+        # all_raw_ingredients = sorted(all_raw_ingredients, key=lambda ingredient: ingredient.name, reverse=False)
+        print(str(self.associated_recipe_table.options))
+        print(f"└──(Raw){self.parent_ingredient}")
+        [print(f"   {'└──' if index == len(all_raw_ingredients) - 1 else '├──' }{item}") for index, item in enumerate(all_raw_ingredients)]
 
     def __repr__(self):
         return f"RecipeQueryResult for {self.parent_ingredient}: Ingredients: {self.ingredients} Recipes: {len(self.recipes)}"
