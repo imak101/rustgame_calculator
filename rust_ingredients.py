@@ -74,10 +74,6 @@ class RustIngredient:
             extra = None
         return RustIngredient(self.key, self.qty + other.qty, extra)
 
-
-
-
-
     def copy_with_new_qty(self, new_qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self.key, new_qty, extra)
 

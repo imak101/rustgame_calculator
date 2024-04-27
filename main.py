@@ -8,14 +8,21 @@ if __name__ == '__main__':
     # satchel_from_mixing = mixing_table.ingredients_needed_for(12, ingredient.SATCHEL_CHARGE)
     # satchel_from_mixing.print_tree()
 
-    # oil_ref = RecipeTable(RecipeTableOptions(CraftingStation.SMALL_OIL_REFINERY))
-    # oil_ref.ingredients_needed_for(1, ingredient.LOW_GRADE_FUEL).print_tree()
+    oil_ref = RecipeTable(RecipeTableOptions(CraftingStation.SMALL_OIL_REFINERY, True, True, True))
+    oil_ref.ingredients_needed_for(750, ingredient.LOW_GRADE_FUEL).print_tree()
     # oil_ref.ingredients_needed_for(4, ingredient.LOW_GRADE_FUEL).print_tree()
     # oil_ref.ingredients_needed_for(6, ingredient.LOW_GRADE_FUEL).print_tree()
     # oil_ref.ingredients_needed_for(10, ingredient.LOW_GRADE_FUEL).print_tree()
 
-    t3 = RecipeTable(RecipeTableOptions(CraftingStation.T3, False, False, True))
+    t3 = RecipeTable(RecipeTableOptions(CraftingStation.T3, False, True, False))
 
+    # todo: add what_can_i_make_with()
+    # todo: show_raw exceptions
+    # todo: add more recipes
+    # todo: add command line api
+    # todo: add interactive ui while running the program
+    # todo: make discord port
+    # todo: add raid calculator
     t3.ingredients_needed_for(20, ingredient.SULFUR).print_tree()
     t3.ingredients_needed_for(6, ingredient.TIMED_EXPLOSIVE_CHARGE).print_tree()
 
