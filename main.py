@@ -29,6 +29,9 @@ if __name__ == '__main__':
     t3.ingredients_needed_for(6, ingredient.TIMED_EXPLOSIVE_CHARGE).print_total_raw_needed()
     t3.ingredients_needed_for(21, ingredient.TIMED_EXPLOSIVE_CHARGE).print_total_raw_needed()
 
+    t3.ingredients_needed_for(101, ingredient.EXPLOSIVE_556_RIFLE_AMMO).print_total_raw_needed()
+
+    t3.what_can_i_make_with([ingredient.GUN_POWDER.from_qty(1000), ingredient.METAL_FRAGMENTS.from_qty(1000), ingredient.SULFUR.from_qty(1000)])
 
 
 

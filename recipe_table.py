@@ -1,6 +1,7 @@
 from recipe import *
 from crafting_station import *
 from rust_ingredients import IngredientKey as ingredient
+from catagories import IngredientCategory
 
 mixing_table_recipes: dict[IngredientKey, Recipe] = {
     ingredient.GUN_POWDER: Recipe(ingredient.GUN_POWDER,
@@ -15,7 +16,7 @@ oil_refinery_recipes: dict[IngredientKey, Recipe] = {
     ingredient.LOW_GRADE_FUEL: Recipe(ingredient.LOW_GRADE_FUEL,
                                       ingredients=[ingredient.CRUDE_OIL.from_qty(1), ingredient.WOOD.from_qty(2.22)],
                                       result=ingredient.LOW_GRADE_FUEL.from_qty(3),
-                                      crafting_station=CraftingStation.SMALL_OIL_REFINERY, seconds_to_craft=3.33),
+                                      crafting_station=CraftingStation.SMALL_OIL_REFINERY,  seconds_to_craft=3.33),
 }
 
 workbench_t1_recipes: dict[IngredientKey, Recipe] = {
@@ -61,7 +62,13 @@ workbench_t3_recipes: dict[IngredientKey, Recipe] = {
     ingredient.TIMED_EXPLOSIVE_CHARGE: Recipe(ingredient.TIMED_EXPLOSIVE_CHARGE,
                                               ingredients=[ingredient.EXPLOSIVES.from_qty(20), ingredient.CLOTH.from_qty(5),
                                                            ingredient.TECH_TRASH.from_qty(2)],
-                                              result=ingredient.TIMED_EXPLOSIVE_CHARGE.from_qty(1), crafting_station=CraftingStation.T3, seconds_to_craft=30)
+                                              result=ingredient.TIMED_EXPLOSIVE_CHARGE.from_qty(1), crafting_station=CraftingStation.T3, seconds_to_craft=30),
+
+    ingredient.EXPLOSIVE_556_RIFLE_AMMO: Recipe(ingredient.EXPLOSIVE_556_RIFLE_AMMO,
+                                                ingredients=[ingredient.METAL_FRAGMENTS.from_qty(10),
+                                                             ingredient.GUN_POWDER.from_qty(20), ingredient.SULFUR.from_qty(10),],
+                                                result=ingredient.EXPLOSIVE_556_RIFLE_AMMO.from_qty(2),
+                                                crafting_station=CraftingStation.T3, seconds_to_craft=3),
 
 
 }
@@ -125,6 +132,14 @@ class RecipeTable:
             self.recipes = self.recipes | RECIPES[CraftingStation.MIXING_TABLE]
         if self.options.use_component_recipes:
             self.recipes = self.recipes | component_recipes
+
+    def what_can_i_make_with(self, ingredients: list[RustIngredient]) -> list["RecipeQueryResult"]:
+        catagory = IngredientCategory.EXPLOSIVES.value
+        recipe_key_pool = [recipe for recipe in self.recipes if recipe in catagory]
+        print([self.recipes[recipe_from_key] for recipe_from_key in recipe_key_pool])
+
+
+
 
     def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
         if not isinstance(qty, int):

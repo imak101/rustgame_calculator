@@ -30,6 +30,7 @@ class IngredientKey(Enum):
     EXPLOSIVES = "Explosives"
     ROCKET = "Rocket"
     TIMED_EXPLOSIVE_CHARGE = "Timed Explosive Charge"
+    EXPLOSIVE_556_RIFLE_AMMO = "Explosive 5.56 Rifle Ammo"
 
     def from_qty(self, qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self, qty, extra)
@@ -51,7 +52,7 @@ class RustIngredient:
     [extra] can be None when no calculation was performed to see if any extra was actually needed. 0 is a valid amount for [extra].
      """
     def __init__(self, key: IngredientKey, qty: float, extra: float | None = None):
-        self.key: Ingredient = key
+        self.key: IngredientKey = key
         self.name: str = key.value
         self.qty: float = qty
         self.extra: float | None = extra
