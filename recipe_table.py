@@ -133,13 +133,77 @@ class RecipeTable:
         if self.options.use_component_recipes:
             self.recipes = self.recipes | component_recipes
 
-    def what_can_i_make_with(self, ingredients: list[RustIngredient]) -> list["RecipeQueryResult"]:
-        catagory = IngredientCategory.EXPLOSIVES.value
-        recipe_key_pool = [recipe for recipe in self.recipes if recipe in catagory]
-        print([self.recipes[recipe_from_key] for recipe_from_key in recipe_key_pool])
+    def boom_from(self, ingredients: list[RustIngredient]) -> list["RecipeQueryResult"]:
+        category = IngredientCategory.EXPLOSIVES.value
+
+        for key in self.__craftable_from_category(ingredients, category):
+            self.__qty_from(key, [self.__to_sulfur(ingredients)])
+        
+    def __craftable_from_category(self, provided_ingredients: list[RustIngredient], category: IngredientCategory) -> list[IngredientKey]:
+        ingredient_keys = [ingredient.key for ingredient in provided_ingredients]
+
+        # filters craft-able items from the category that have been provided as an ingredient. (e.g. you can't craft explosives from explosives)
+        valid_craftable = [category_key for category_key in category if category_key not in ingredient_keys]
+
+        queries = [
+             RecipeQueryResult(self.recipes[recipe_key].result,
+                               self.recipes[recipe_key].ingredients,
+                               self)
+             for recipe_key in valid_craftable]
+
+        return [query.parent_ingredient.key for query in queries if set(ingredient_keys).issubset(set(query.all_keys()))]
 
 
+    def __to_sulfur(self, ingredients: list[RustIngredient]) -> RustIngredient:
+        """Can convert Gunpowder and Explosives to their raw sulfur value. Passing Sulfur as an argument just adds that sulfur to the sum"""
+        if len(ingredients) == 1 and ingredients[0].key == ingredient.SULFUR:
+            return ingredients[0]
 
+        allowed_ingredients = [ingredient.GUN_POWDER, ingredient.EXPLOSIVES, ingredient.SULFUR]
+        if len([item for item in ingredients if item.key not in allowed_ingredients]) >= 1:
+            raise ValueError(f"Cannot reverse-craft {ingredients} to sulfur!")
+
+        sulfur = ingredient.SULFUR.from_qty(0)
+        for item in ingredients:
+            if item.key == ingredient.SULFUR:
+                sulfur += item
+                continue
+
+            query = RecipeQueryResult(parent_ingredient=item,
+                                      ingredients=self.recipes[item.key].ingredients_needed_for(item.total_qty),
+                                      associated_recipe_table=self)
+            sulfur += [raw for raw in query.raw() if raw.key == ingredient.SULFUR][0]
+
+        return sulfur
+
+
+    def __qty_from(self, target_ingredient_key: IngredientKey, provided_ingredients: list[RustIngredient]) -> RustIngredient:
+        matched_target_recipe = self.recipes[target_ingredient_key]
+        raw_needed_for_1_target = RecipeQueryResult(parent_ingredient=matched_target_recipe.result,
+                                                    ingredients=matched_target_recipe.ingredients,
+                                                    associated_recipe_table=self).raw()
+
+        filtered_ingredients = [target_raw for target_raw in raw_needed_for_1_target if target_raw.key in [provided.key for provided in provided_ingredients]]
+
+        # divide like ingredients against each other
+        quotient_tuples = [(divisor.key, round((dividend.qty / divisor.qty), 2)) for divisor in filtered_ingredients for dividend in provided_ingredients if divisor.key == dividend.key]
+        # todo: figure out if we need to make this method only accept sulf/gp so we can drop list support
+        total = max([matched_target_recipe.result.copy_with_new_qty(new_qty=math.floor(quotient), extra=round(quotient % 1, 2)) for key, quotient in quotient_tuples], key=lambda item: item.total_qty)
+        if matched_target_recipe.result.qty > 1:
+            # compensate for some recipes crafting in quantities that are more than 1
+            total *= matched_target_recipe.result
+
+        query_for_total = RecipeQueryResult(parent_ingredient=total.copy_with_new_qty(total.qty), ingredients=matched_target_recipe.ingredients_needed_for(total.qty), associated_recipe_table=self)
+        query_for_extra = RecipeQueryResult(parent_ingredient=total.copy_with_new_qty(total.extra), ingredients=matched_target_recipe.ingredients_needed_for(total.extra), associated_recipe_table=self)
+
+        final = RecipeQueryResult(parent_ingredient=total.copy_with_new_qty(query_for_total.parent_ingredient.qty, query_for_extra.parent_ingredient.qty),
+                                  ingredients=[real_total_item.copy_with_new_qty(real_total_item.qty, extra_total_item.qty) for real_total_item in query_for_total.ingredients for extra_total_item in query_for_extra.ingredients if real_total_item == extra_total_item],
+                                  associated_recipe_table=self)
+
+        final.to_imaginary()
+        print(final)
+        final.print_tree()
+        final.print_total_raw_needed()
 
     def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
         if not isinstance(qty, int):
@@ -212,7 +276,7 @@ class RecipeQueryResult:
             for i, n in enumerate(node.recipes):
                 self.print_tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
 
-    def __raw(self) -> list[RustIngredient]:
+    def __raw_or_parent(self) -> list[RustIngredient]:
         totals = []
         if self.recipes is None:
             totals.append(self.parent_ingredient)
@@ -222,20 +286,26 @@ class RecipeQueryResult:
             totals.extend([ingredient for ingredient in recipe_query.ingredients or [recipe_query.parent_ingredient]])
         return totals
 
+    def raw(self, combine_duplicates: bool = True) -> list[RustIngredient]:
+        all_raw_ingredients = []
+        for recipe_query in self.recipes:
+            for recipe_ingredient in recipe_query.__raw_or_parent():
+                if combine_duplicates:
+                    # true if dup is present
+                    needs_combine = 1 <= len([ingredient for ingredient in all_raw_ingredients if ingredient == recipe_ingredient])
+                    if needs_combine:
+                        # reassign all_raw_ingredients with new list that combined all [RustIngredients] with the same [IngredientKey]. all others are unchanged.
+                        all_raw_ingredients = [raw_total_ingredient + recipe_ingredient if recipe_ingredient == raw_total_ingredient else raw_total_ingredient for raw_total_ingredient in all_raw_ingredients]
+                        continue
+
+                all_raw_ingredients.append(recipe_ingredient)
+        return all_raw_ingredients
+
     def print_total_raw_needed(self):
         if self.recipes is None:
             raise ValueError(f"You cannot craft {self.parent_ingredient.name}.")
 
-        all_raw_ingredients = []
-        for recipe_query in self.recipes:
-            for recipe_ingredient in recipe_query.__raw():
-                run_combine = 1 <= len([ingredient for ingredient in all_raw_ingredients if ingredient == recipe_ingredient])
-                if run_combine:
-                    # reassign all_raw_ingredients with new list that combined all [RustIngredients] with the same [IngredientKey]. all others are unchanged.
-                    all_raw_ingredients = [raw_total_ingredient + recipe_ingredient if recipe_ingredient == raw_total_ingredient else raw_total_ingredient for raw_total_ingredient in all_raw_ingredients]
-                    continue
-
-                all_raw_ingredients.append(recipe_ingredient)
+        all_raw_ingredients = self.raw()
 
         # todo: refactor these 5 lines
         all_raw_ingredients = sorted(all_raw_ingredients, key=lambda ingredient: ingredient.qty, reverse=True)
@@ -243,6 +313,39 @@ class RecipeQueryResult:
         print(str(self.associated_recipe_table.options))
         print(f"└──(Raw){self.parent_ingredient}")
         [print(f"   {'└──' if index == len(all_raw_ingredients) - 1 else '├──' }{item}") for index, item in enumerate(all_raw_ingredients)]
+
+    def to_imaginary(self):
+        """Sets this RecipeQueryResult to be imaginary IN PLACE"""
+        self.parent_ingredient.is_imaginary = True
+        if self.ingredients is None:
+            return
+        for item in self.ingredients:
+            item.is_imaginary = True
+        # todo: determine if children any deeper than 1 level from root need to be imaginary
+        # for recipe in self.recipes:
+        #     recipe.to_imaginary()
+
+    def associated_raw(self, node: "RecipeQueryResult" = None) -> list[tuple[RustIngredient, RustIngredient]]:
+        """returns a list of (parent_ingredient, child_ingredient) tuples of all ingredients needed for this query """
+        if node is None:
+            node = self
+        if node.recipes is None:
+            return []
+
+        collected = []
+        for child in node.recipes:
+            collected.append((node.parent_ingredient, child.parent_ingredient))
+            collected.extend(child.associated_raw(child))
+        return [collected_ingredient for collected_ingredient in collected if collected_ingredient is not None]
+
+    def all_keys(self) -> list[IngredientKey]:
+        """returns a UNASSOCIATED list of all IngredientKeys (including root's parent key) needed for this query. No duplicates."""
+        keys = []
+        for associated_raw_pair in self.associated_raw():
+            keys.extend([raw_pair_item.key for raw_pair_item in associated_raw_pair])
+
+        # remove duplicate keys with list(set())
+        return list(set(keys))
 
     def __repr__(self):
         return f"RecipeQueryResult for {self.parent_ingredient}: Ingredients: {self.ingredients} Recipes: {len(self.recipes)}"

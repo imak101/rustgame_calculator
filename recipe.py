@@ -23,8 +23,11 @@ class Recipe:
         filtered_ingredients = [suppliedIngredient for suppliedIngredient in ingredients
                                 for requiredIngredient in self.ingredients
                                 if suppliedIngredient.name == requiredIngredient.name and suppliedIngredient.qty >= requiredIngredient.qty]
+
         # return early if we don't have enough ingredients to make this recipe
-        if len(filtered_ingredients) < len(self.ingredients):
+        # if len(filtered_ingredients) < len(self.ingredients):
+        #     return None
+        if len(filtered_ingredients) == 0:
             return None
 
         craft_qty_possible = []
@@ -39,8 +42,8 @@ class Recipe:
         return [item.copy_with_new_qty(new_qty=(item.qty * units / self.result.qty), extra=0) for item in self.ingredients]
 
     def ingredients_needed_for(self, units: int) -> list[RustIngredient]:
-        if units < self.result.qty:
-            units = self.result.qty
+        # if units < self.result.qty:
+        #     units = self.result.qty
 
         # check if requested amount is divisible by recipe stack amount which means there will be no extras
         if units % self.result.qty == 0:

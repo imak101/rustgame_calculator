@@ -43,7 +43,7 @@ class RustIngredient:
 
     The [extra] argument is used to represent the amount that is needed for the original [qty]
     to be (relatively) divisible by the crafting amount of whatever recipe that requires this ingredient.
-    This is done so that the original, requested quantity is not lost and only requires adding [qty] and [extra] to see the true amount.
+    This is done so that the original, requested, quantity is not lost and only requires adding [qty] and [extra] to see the true amount.
 
     e.g. A user requests the ingredients needed to make 1 low grade fuel from an oil refinery.
     Because the oil refinery can only make low grade in stacks of 3, we will instantiate the result [RustIngredient] with
@@ -57,7 +57,14 @@ class RustIngredient:
         self.qty: float = qty
         self.extra: float | None = extra
 
-        self.total_qty: float = qty + extra if extra is not None else 0
+        self.total_qty: float = qty + (extra if extra is not None else 0)
+
+        # True when representing an ingredient that is not yet real in a Rust inventory.
+        # e.g. is imaginary when representing a possible craft result but not yet actually crafted
+        # Imaginary ingredients don't needed to be math.ceiling()-ed to represent a real craft-able amount from a partial craft amount from imperfect craft quantities requested via a user.
+        # Imaginary ingredients can **only ever** be crafted in their respective quantity because crafting station never craft in partial stack sizes.
+        # (e.g. gunpowder crafts in increments of 10. you can *never* craft less than this amount or in amounts that aren't divisible by 10)
+        self.is_imaginary: bool = False
 
     def __eq__(self, other):
         if not isinstance(other, RustIngredient):
@@ -75,10 +82,24 @@ class RustIngredient:
             extra = None
         return RustIngredient(self.key, self.qty + other.qty, extra)
 
+    def __mul__(self, other):
+        if not isinstance(other, RustIngredient):
+            raise TypeError(f'Cannot multiply {type(self).__name__} by {type(other).__name__}')
+        if self.key != other.key:
+            raise ValueError(f'Cannot multiply {self.key.value} by {other.key.value}. Make sure they both share the same key.')
+
+        extra = self.extra if self.extra is not None else 1 * other.extra if other.extra is not None else 1
+        if self.extra is None and other.extra is None:
+            extra = None
+        return RustIngredient(self.key, self.qty * other.qty, extra)
+
     def copy_with_new_qty(self, new_qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self.key, new_qty, extra)
 
     def __repr__(self):
+        if self.is_imaginary:
+            return f"{self.name} x{math.floor(self.qty)} {f'(originally x{round(self.total_qty, 2)})' if math.floor(self.qty) != self.total_qty else ''}"
+
         show_exact_amount_too = self.total_qty < math.ceil(self.total_qty) != 1
         exact_amount = '(' + f'≡{self.total_qty:.2f}' + ')' if show_exact_amount_too else ''
         if self.extra is None or self.extra <= 0:
