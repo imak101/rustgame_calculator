@@ -45,6 +45,11 @@ workbench_t2_recipes: dict[IngredientKey, Recipe] = {
                                   ingredients=[ingredient.SULFUR.from_qty(20), ingredient.CHARCOAL.from_qty(30)],
                                   result=ingredient.GUN_POWDER.from_qty(10), crafting_station=CraftingStation.T2,
                                   seconds_to_craft=1),
+
+    ingredient.HIGH_VELOCITY_ROCKET: Recipe(ingredient.HIGH_VELOCITY_ROCKET,
+                                            ingredients=[ingredient.METAL_PIPE.from_qty(1), ingredient.GUN_POWDER.from_qty(100)],
+                                            result=ingredient.HIGH_VELOCITY_ROCKET.from_qty(1), crafting_station=CraftingStation.T2,
+                                            seconds_to_craft=5),
 }
 
 workbench_t3_recipes: dict[IngredientKey, Recipe] = {

@@ -10,5 +10,8 @@ class IngredientCategory(Enum):
         ingredient.EXPLOSIVES,
         ingredient.ROCKET,
         ingredient.TIMED_EXPLOSIVE_CHARGE,
-        ingredient.EXPLOSIVE_556_RIFLE_AMMO
+        ingredient.EXPLOSIVE_556_RIFLE_AMMO,
+        ingredient.HIGH_VELOCITY_ROCKET
     ]
+
+    AMMO: list[IngredientKey] = []

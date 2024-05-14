@@ -31,6 +31,7 @@ class IngredientKey(Enum):
     ROCKET = "Rocket"
     TIMED_EXPLOSIVE_CHARGE = "Timed Explosive Charge"
     EXPLOSIVE_556_RIFLE_AMMO = "Explosive 5.56 Rifle Ammo"
+    HIGH_VELOCITY_ROCKET = "High Velocity Rocket"
 
     def from_qty(self, qty: float, extra: float | None = None) -> "RustIngredient":
         return RustIngredient(self, qty, extra)
