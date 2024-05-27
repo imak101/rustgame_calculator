@@ -126,7 +126,10 @@ class RecipeTableOptions:
 
 
 class RecipeTable:
-    def __init__(self, options: RecipeTableOptions):
+    def __init__(self, options: RecipeTableOptions = None):
+        if options is None:
+            options = RecipeTableOptions(CraftingStation.T3, True, False, True)
+
         self.options: RecipeTableOptions = options
         self.recipes: dict[IngredientKey, Recipe] = RECIPES[options.crafting_station]
 
@@ -141,8 +144,9 @@ class RecipeTable:
     def boom_from(self, ingredients: list[RustIngredient]) -> list["RecipeQueryResult"]:
         category = IngredientCategory.EXPLOSIVES.value
 
-        for key in self.__craftable_from_category(ingredients, category):
-            self.__qty_from(key, [self.__to_sulfur(ingredients)])
+        return [self.__qty_from(craftable_item_key, [self.__to_sulfur(ingredients)]) for craftable_item_key in self.__craftable_from_category(ingredients, category)]
+        # for key in self.__craftable_from_category(ingredients, category):
+        #     self.__qty_from(key, [self.__to_sulfur(ingredients)])
         
     def __craftable_from_category(self, provided_ingredients: list[RustIngredient], category: IngredientCategory) -> list[IngredientKey]:
         ingredient_keys = [ingredient.key for ingredient in provided_ingredients]
@@ -182,7 +186,7 @@ class RecipeTable:
         return sulfur
 
 
-    def __qty_from(self, target_ingredient_key: IngredientKey, provided_ingredients: list[RustIngredient]) -> RustIngredient:
+    def __qty_from(self, target_ingredient_key: IngredientKey, provided_ingredients: list[RustIngredient]) -> "RecipeQueryResult":
         matched_target_recipe = self.recipes[target_ingredient_key]
         raw_needed_for_1_target = RecipeQueryResult(parent_ingredient=matched_target_recipe.result,
                                                     ingredients=matched_target_recipe.ingredients,
@@ -206,25 +210,23 @@ class RecipeTable:
                                   associated_recipe_table=self)
 
         final.to_imaginary()
-        print(final)
-        final.print_tree()
-        final.print_total_raw_needed()
+        return final
 
-    def ingredients_needed_for(self, qty: int, recipe: IngredientKey) -> "RecipeQueryResult":
+    def ingredients_needed_for(self, qty: int, item: IngredientKey) -> "RecipeQueryResult":
         if not isinstance(qty, int):
             # While internal ingredient quantity is represented as a float, in Rust, items are ONLY shown in integers.
             raise TypeError("qty must be an integer! You cannot create non-integral quantities of items in Rust.")
         if qty <= 0:
             raise ValueError("qty must be greater than zero!")
 
-        if recipe not in self.recipes:
+        if item not in self.recipes:
             # todo: determine if we should throw vs just returning an empty query
             # raise ValueError(f"You cannot craft {recipe.value}.")
-            return RecipeQueryResult(recipe.from_qty(qty), None, None)
+            return RecipeQueryResult(item.from_qty(qty), None, None)
 
-        matched_recipe = self.recipes[recipe]
+        matched_recipe = self.recipes[item]
         extra_needed_for_parent = self.__calculate_extra(qty, matched_recipe.result)
-        return RecipeQueryResult(parent_ingredient=recipe.from_qty(qty, extra_needed_for_parent),
+        return RecipeQueryResult(parent_ingredient=item.from_qty(qty, extra_needed_for_parent),
                                  ingredients=matched_recipe.ingredients_needed_for(qty),
                                  associated_recipe_table=self)
 
@@ -264,22 +266,25 @@ class RecipeQueryResult:
 
         return result
 
-    def print_tree(self, node: "RecipeQueryResult" = None, last=True, header=''):
+    def tree(self, node: "RecipeQueryResult" = None, last=True, header='') -> str:
+        """Returns a string of the tree representation of this RecipeQueryResult."""
+        result = ""
         if node is None:
             node = self
             if node.associated_recipe_table is None:
-                print("There are no recipes for:")
+                result += "There are no recipes for:" + "\n"
             else:
-                print(str(node.associated_recipe_table.options))
+                result += str(node.associated_recipe_table.options) + "\n"
         elbow = "└──"
         pipe = "│  "
         tee = "├──"
         blank = "   "
-        print(header + (elbow if last else tee) + str(node.parent_ingredient))
+        result += (header + (elbow if last else tee) + str(node.parent_ingredient)) + "\n"
         if node.recipes is not None:
             # index, node
             for i, n in enumerate(node.recipes):
-                self.print_tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
+                result += self.tree(n, header=header + (blank if last else pipe), last=i == len(node.recipes) - 1)
+        return result
 
     def __raw_or_parent(self) -> list[RustIngredient]:
         totals = []
@@ -306,18 +311,22 @@ class RecipeQueryResult:
                 all_raw_ingredients.append(recipe_ingredient)
         return all_raw_ingredients
 
-    def print_total_raw_needed(self):
+    def raw_needed_tree(self) -> str:
+        """Returns a string of the tree representation for the raw ingredients of this RecipeQueryResult."""
         if self.recipes is None:
             raise ValueError(f"You cannot craft {self.parent_ingredient.name}.")
 
         all_raw_ingredients = self.raw()
 
-        # todo: refactor these 5 lines
         all_raw_ingredients = sorted(all_raw_ingredients, key=lambda ingredient: ingredient.qty, reverse=True)
         # all_raw_ingredients = sorted(all_raw_ingredients, key=lambda ingredient: ingredient.name, reverse=False)
-        print(str(self.associated_recipe_table.options))
-        print(f"└──(Raw){self.parent_ingredient}")
-        [print(f"   {'└──' if index == len(all_raw_ingredients) - 1 else '├──' }{item}") for index, item in enumerate(all_raw_ingredients)]
+        result = ""
+        result += str(self.associated_recipe_table.options) + "\n"
+        result += f"└──(Raw){self.parent_ingredient}" + "\n"
+        for index, item in enumerate(all_raw_ingredients):
+            result += f"   {'└──' if index == len(all_raw_ingredients) - 1 else '├──' }{item}" + "\n"
+
+        return result
 
     def to_imaginary(self):
         """Sets this RecipeQueryResult to be imaginary IN PLACE"""
