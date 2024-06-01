@@ -38,6 +38,8 @@ if __name__ == '__main__':
         table = RecipeTable()
 
         boom_queries = table.boom_from(input_items)
+        if len(boom_queries) == 0:
+            print(f"You cannot make any boom from these ingredients: {','.join([str(item) for item in input_items])}")
         for query in boom_queries:
             if len(boom_queries) > 1:
                 print(f"↓↓ ----- {query.parent_ingredient.name.upper()} ----- ↓↓ \n")

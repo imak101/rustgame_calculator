@@ -144,9 +144,9 @@ class RecipeTable:
     def boom_from(self, ingredients: list[RustIngredient]) -> list["RecipeQueryResult"]:
         category = IngredientCategory.EXPLOSIVES.value
 
-        return [self.__qty_from(craftable_item_key, [self.__to_sulfur(ingredients)]) for craftable_item_key in self.__craftable_from_category(ingredients, category)]
-        # for key in self.__craftable_from_category(ingredients, category):
-        #     self.__qty_from(key, [self.__to_sulfur(ingredients)])
+        results = [self.__qty_from(craftable_item_key, [self.__to_sulfur(ingredients)]) for craftable_item_key in self.__craftable_from_category(ingredients, category)]
+        return [result for result in results if result.parent_ingredient.total_qty >= 1]
+
         
     def __craftable_from_category(self, provided_ingredients: list[RustIngredient], category: IngredientCategory) -> list[IngredientKey]:
         ingredient_keys = [ingredient.key for ingredient in provided_ingredients]
