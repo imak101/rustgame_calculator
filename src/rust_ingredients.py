@@ -43,7 +43,7 @@ class RustIngredient:
     so every RustIngredient quantity is a float even if the actual ingredient is a whole number.
 
     The [extra] argument is used to represent the amount that is needed for the original [qty]
-    to be (relatively) divisible by the crafting amount of whatever recipe that requires this ingredient.
+    to be divisible by the crafting amount of whatever recipe that requires this ingredient.
     This is done so that the original, requested, quantity is not lost and only requires adding [qty] and [extra] to see the true amount.
 
     e.g. A user requests the ingredients needed to make 1 low grade fuel from an oil refinery.
