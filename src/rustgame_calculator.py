@@ -6,14 +6,20 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--mode", help="Calculator mode. 1='ingredients need for...' 2='how much boom can i make with...'", choices=['1', '2'])
-parser.add_argument("-i", "--item", nargs="*", help="item format: ('item name':quantity of item) e.g. sulfur:1000 or gun_power:2000") # choices=[item.value.replace(" ", "_").lower() for item in ingredient]
+parser.add_argument("-i", "--item", nargs="*", help=f"item format: (quantity:item name) e.g. 1000:sulfur or 2000:gun_power. CHOICES: {"\n".join([item.value.replace(" ", "_").lower() + "\n" for item in ingredient])}") # choices=[item.value.replace(" ", "_").lower() for item in ingredient])
 parser.add_argument("-r", "--raw", help="Also show raw ingredients", action="store_true")
 args = parser.parse_args()
 
 
 def item_string_to_rust_ingredient(item: str) -> RustIngredient:
-    item_name, item_qty = item.split(":")
-    return ingredient[item_name.replace("-", "_").upper()].from_qty(int(item_qty))
+    item_qty, item_name = item.split(":")
+
+    if float(item_qty) % 1.0 != 0:
+        print("You cannot craft a fraction of an item in Rust!")
+        print(f"FIX ---> {item_qty}x {item_name} <--- FIX")
+        exit(0)
+
+    return ingredient[item_name.replace("-", "_").replace(".", "").upper()].from_qty(int(float(item_qty))) # cast twice to avoid ValueError when user inputs "XXXX.00"
 
 
 def make_item_list(items: list[str]) -> list[RustIngredient]:
@@ -21,6 +27,14 @@ def make_item_list(items: list[str]) -> list[RustIngredient]:
 
 
 if __name__ == '__main__':
+    if args.mode is None:
+        parser.print_help()
+        exit(0)
+
+    if args.item is None:
+        print("No items provided! Please try again with a '-i'(item) paramater.")
+        exit(0)
+    
     if int(args.mode) == 1:
         input_items = make_item_list(args.item)
         table = RecipeTable()
